@@ -1,0 +1,330 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+Fluent.Version = "0.1"
+
+local Window = Fluent:CreateWindow({
+    Title = "Lomu Hub " .. Fluent.Version,
+    SubTitle = "by grace",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = false, -- The blur may be detectable, setting this to false disables blur entirely
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl -- Used when theres no MinimizeKeybind
+})
+
+--Fluent provides Lucide Icons https://lucide.dev/icons/ for the tabs, icons are optional
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    Player = Window:AddTab({ Title = "Player", Icon = "user" }),
+    Univ = Window:AddTab({ Title = "Universal Script", Icon = "scroll" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
+}
+
+local Options = Fluent.Options
+
+do
+    Fluent:Notify({
+        Title = "Lomu Hub",
+        Content = "Running Successfully",
+        Duration = 5 -- Set to nil to make the notification not disappear
+    })
+
+    Players.PlayerAdded:Connect(countPlayers)
+    Players.PlayerRemoving:Connect(countPlayers)
+    local Players = game:GetService("Players")
+
+    Tabs.Main:AddParagraph({
+        Title = "Server Info",
+        Content = "Players : " .. Players.NumPlayers .. " / " ..Players.MaxPlayers
+    })
+
+
+
+    Tabs.Player:AddButton({
+        Title = "ESP",
+        Description = "Credit : Lucasfin000",
+        Callback = function()
+            _G.FriendColor = Color3.fromRGB(0, 0, 255)
+            _G.EnemyColor = Color3.fromRGB(255, 0, 0)
+            _G.UseTeamColor = true
+
+            --------------------------------------------------------------------
+            local Holder = Instance.new("Folder", game.CoreGui)
+            Holder.Name = "ESP"
+
+            local Box = Instance.new("BoxHandleAdornment")
+            Box.Name = "nilBox"
+            Box.Size = Vector3.new(1, 2, 1)
+            Box.Color3 = Color3.new(100 / 255, 100 / 255, 100 / 255)
+            Box.Transparency = 0.7
+            Box.ZIndex = 0
+            Box.AlwaysOnTop = false
+            Box.Visible = false
+
+            local NameTag = Instance.new("BillboardGui")
+            NameTag.Name = "nilNameTag"
+            NameTag.Enabled = false
+            NameTag.Size = UDim2.new(0, 200, 0, 50)
+            NameTag.AlwaysOnTop = true
+            NameTag.StudsOffset = Vector3.new(0, 1.8, 0)
+            local Tag = Instance.new("TextLabel", NameTag)
+            Tag.Name = "Tag"
+            Tag.BackgroundTransparency = 1
+            Tag.Position = UDim2.new(0, -50, 0, 0)
+            Tag.Size = UDim2.new(0, 300, 0, 20)
+            Tag.TextSize = 15
+            Tag.TextColor3 = Color3.new(100 / 255, 100 / 255, 100 / 255)
+            Tag.TextStrokeColor3 = Color3.new(0 / 255, 0 / 255, 0 / 255)
+            Tag.TextStrokeTransparency = 0.4
+            Tag.Text = "nil"
+            Tag.Font = Enum.Font.SourceSansBold
+            Tag.TextScaled = false
+
+            local LoadCharacter = function(v)
+                repeat wait() until v.Character ~= nil
+                v.Character:WaitForChild("Humanoid")
+                local vHolder = Holder:FindFirstChild(v.Name)
+                vHolder:ClearAllChildren()
+                local b = Box:Clone()
+                b.Name = v.Name .. "Box"
+                b.Adornee = v.Character
+                b.Parent = vHolder
+                local t = NameTag:Clone()
+                t.Name = v.Name .. "NameTag"
+                t.Enabled = true
+                t.Parent = vHolder
+                t.Adornee = v.Character:WaitForChild("Head", 5)
+                if not t.Adornee then
+                    return UnloadCharacter(v)
+                end
+                t.Tag.Text = v.Name
+                b.Color3 = Color3.new(v.TeamColor.r, v.TeamColor.g, v.TeamColor.b)
+                t.Tag.TextColor3 = Color3.new(v.TeamColor.r, v.TeamColor.g, v.TeamColor.b)
+                local Update
+                local UpdateNameTag = function()
+                    if not pcall(function()
+                        v.Character.Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+                        local maxh = math.floor(v.Character.Humanoid.MaxHealth)
+                        local h = math.floor(v.Character.Humanoid.Health)
+                    end) then
+                        Update:Disconnect()
+                    end
+                end
+                UpdateNameTag()
+                Update = v.Character.Humanoid.Changed:Connect(UpdateNameTag)
+            end
+
+            local UnloadCharacter = function(v)
+                local vHolder = Holder:FindFirstChild(v.Name)
+                if vHolder and (vHolder:FindFirstChild(v.Name .. "Box") ~= nil or vHolder:FindFirstChild(v.Name .. "NameTag") ~= nil) then
+                    vHolder:ClearAllChildren()
+                end
+            end
+
+            local LoadPlayer = function(v)
+                local vHolder = Instance.new("Folder", Holder)
+                vHolder.Name = v.Name
+                v.CharacterAdded:Connect(function()
+                    pcall(LoadCharacter, v)
+                end)
+                v.CharacterRemoving:Connect(function()
+                    pcall(UnloadCharacter, v)
+                end)
+                v.Changed:Connect(function(prop)
+                    if prop == "TeamColor" then
+                        UnloadCharacter(v)
+                        wait()
+                        LoadCharacter(v)
+                    end
+                end)
+                LoadCharacter(v)
+            end
+
+            local UnloadPlayer = function(v)
+                UnloadCharacter(v)
+                local vHolder = Holder:FindFirstChild(v.Name)
+                if vHolder then
+                    vHolder:Destroy()
+                end
+            end
+
+            for i,v in pairs(game:GetService("Players"):GetPlayers()) do
+                spawn(function() pcall(LoadPlayer, v) end)
+            end
+
+            game:GetService("Players").PlayerAdded:Connect(function(v)
+                pcall(LoadPlayer, v)
+            end)
+
+            game:GetService("Players").PlayerRemoving:Connect(function(v)
+                pcall(UnloadPlayer, v)
+            end)
+
+            game:GetService("Players").LocalPlayer.NameDisplayDistance = 0
+
+            if _G.Reantheajfdfjdgs then
+                return
+            end
+
+            _G.Reantheajfdfjdgs = ":suifayhgvsdghfsfkajewfrhk321rk213kjrgkhj432rj34f67df"
+
+            local players = game:GetService("Players")
+            local plr = players.LocalPlayer
+
+            function esp(target, color)
+                if target.Character then
+                    if not target.Character:FindFirstChild("GetReal") then
+                        local highlight = Instance.new("Highlight")
+                        highlight.RobloxLocked = true
+                        highlight.Name = "GetReal"
+                        highlight.Adornee = target.Character
+                        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        highlight.FillColor = color
+                        highlight.Parent = target.Character
+                    else
+                        target.Character.GetReal.FillColor = color
+                    end
+                end
+            end
+
+            while task.wait() do
+                for i, v in pairs(players:GetPlayers()) do
+                    if v ~= plr then
+                        esp(v, _G.UseTeamColor and v.TeamColor.Color or ((plr.TeamColor == v.TeamColor) and _G.FriendColor or _G.EnemyColor))
+                    end
+                end
+            end
+        end
+    })
+
+    Tabs.Player:AddButton({
+        Title = "Infinite Jump",
+        Callback = function()
+            game:GetService("UserInputService").JumpRequest:Connect(function()
+                game.Players.LocalPlayer.Character:FindFirstChild("Humanoid"):ChangeState("Jumping")
+            end)
+        end
+    })
+
+
+
+    -- local Toggle = Tabs.Main:AddToggle("MyToggle", {Title = "Toggle", Default = false })
+
+    -- Toggle:OnChanged(function()
+    --     print("Toggle changed:", Options.MyToggle.Value)
+    -- end)
+
+    -- Options.MyToggle:SetValue(false)
+    
+    local Slider = Tabs.Player:AddSlider("Slider", {
+        Title = "WalkSpeed",
+        Default = 2,
+        Min = 0,
+        Max = 200,
+        Rounding = 1,
+        Callback = function(ValueSpeed)
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = ValueSpeed
+        end
+    })
+
+    Slider:SetValue(16)
+
+    local Slider = Tabs.Player:AddSlider("Slider", {
+        Title = "JumpPower",
+        Default = 2,
+        Min = 0,
+        Max = 200,
+        Rounding = 1,
+        Callback = function(ValueSpeed)
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = ValueSpeed
+        end
+    })
+
+    Slider:SetValue(50)
+
+
+
+    local Dropdown = Tabs.Main:AddDropdown("Dropdown", {
+        Title = "Dropdown",
+        Values = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen"},
+        Multi = false,
+        Default = 1,
+    })
+
+    Dropdown:SetValue("four")
+
+    Dropdown:OnChanged(function(Value)
+        print("Dropdown changed:", Value)
+    end)
+
+    Tabs.Univ:AddButton({
+        Title = "Infinite Yield",
+        Callback = function()
+            Fluent:Notify({
+                Title = "Lomu Hub",
+                Content = "Running Infinite Yield",
+                Duration = 8
+            })
+            loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+        end
+    })
+
+    Tabs.Univ:AddButton({
+        Title = "CMD-X",
+        Callback = function()
+            Fluent:Notify({
+                Title = "Lomu Hub",
+                Content = "Running CMD-X",
+                Duration = 8
+            })
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/CMD-X/CMD-X/master/Source", true))()
+        end
+    })
+
+    Tabs.Univ:AddButton({
+        Title = "Dark Dex",
+        Callback = function()
+            Fluent:Notify({
+                Title = "Lomu Hub",
+                Content = "Running Dark Dex",
+                Duration = 8
+            })
+            loadstring(game:HttpGet('https://raw.githubusercontent.com/Babyhamsta/RBLX_Scripts/main/Universal/BypassedDarkDexV3.lua'))()
+        end
+    })
+end
+
+
+-- Addons:
+-- SaveManager (Allows you to have a configuration system)
+-- InterfaceManager (Allows you to have a interface managment system)
+
+-- Hand the library over to our managers
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+-- Ignore keys that are used by ThemeManager.
+-- (we dont want configs to save themes, do we?)
+SaveManager:IgnoreThemeSettings()
+
+-- You can add indexes of elements the save manager should ignore
+SaveManager:SetIgnoreIndexes({})
+
+-- use case for doing it this way:
+-- a script hub could have themes in a global folder
+-- and game configs in a separate folder per game
+InterfaceManager:SetFolder("FluentScriptHub")
+SaveManager:SetFolder("FluentScriptHub/specific-game")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+
+Window:SelectTab(1)
+
+
+-- You can use the SaveManager:LoadAutoloadConfig() to load a config
+-- which has been marked to be one that auto loads!
+SaveManager:LoadAutoloadConfig()
